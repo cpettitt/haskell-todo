@@ -1,0 +1,19 @@
+name:           haskell-todo
+version:        0.1
+license:        MIT
+license-file:   LICENSE
+author:         Chris Pettitt
+maintainer:     cpettitt@gmail.com
+homepage:       http://samsarin.com
+category:       Other
+synopsis:       A simple utility for managing tasks.
+description:    A simple utility for managing tasks.
+build-type:     Simple
+cabal-version:  >= 1.2
+
+executable htd
+    build-depends:  base >= 4 && < 5,
+                    containers, 
+                    directory
+    main-is:        htd.hs
+    ghc-options:    -Wall
