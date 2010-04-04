@@ -89,6 +89,12 @@ cmd ("done":idStr:[]) = do
 cmd ("undone":idStr:[]) =
     modifyDB (adjustTodo (read idStr) (deleteTag "@done"))
 
+cmd ("projs":[]) =
+    withDB (unlines . map (colorize . stripTagMeta) . Set.toList . filterWords isProject) >>= putStr
+
+cmd ("conts":[]) =
+    withDB (unlines . map (colorize . stripTagMeta) . Set.toList .  filterWords isContext) >>= putStr
+
 cmd ("ls":tags) =
     withDB (list (Set.fromList tags) (Set.singleton "@done")) >>= putStr
 
@@ -186,17 +192,32 @@ getAppDir :: IO String
 getAppDir = getAppUserDataDirectory "htd"
 
 fmtTodo :: Id -> Todo -> String
-fmtTodo todoId todo = printf "%s[%4d]%s %s" idColor todoId resetColor todoColored
+fmtTodo todoId todo = printf "[%4s] %s" idColored todoColored
     where
-        idColor      = setSGRCode [SetColor Foreground Vivid Magenta]
-        resetColor   = setSGRCode []
-        contextColor = setSGRCode [SetColor Foreground Vivid Green, SetUnderlining SingleUnderline]
-        projectColor = setSGRCode [SetColor Foreground Vivid Blue, SetUnderlining SingleUnderline]
-        todoColored  = unwords . map colorWord . words $ todo
-        colorWord x
-            | isContext x = printf "%s%s%s" contextColor x resetColor
-            | isProject x = printf "%s%s%s" projectColor x resetColor
-            | otherwise   = x
+        idColored = applyColor idColor $ show todoId
+        todoColored  = unwords . map colorize . words $ todo
+
+colorize :: String -> String
+colorize x
+    | isContext x = applyColor contextColor x
+    | isProject x = applyColor projectColor x
+    | otherwise   = x
+
+-- Color codes
+idColor :: [SGR]
+idColor      = [SetColor Foreground Vivid Magenta]
+
+resetColor :: [SGR]
+resetColor   = []
+
+contextColor :: [SGR]
+contextColor = [SetColor Foreground Vivid Green, SetUnderlining SingleUnderline]
+
+projectColor :: [SGR]
+projectColor = [SetColor Foreground Vivid Blue, SetUnderlining SingleUnderline]
+
+applyColor :: [SGR] -> String -> String
+applyColor sgr str = printf "%s%s%s" (setSGRCode sgr) str (setSGRCode resetColor)
 
 -- Returns @True@ if the 'Todo' has all specified 'Tag's.
 hasTags :: Set Tag -> Todo -> Bool
@@ -222,6 +243,9 @@ isProject x  = head x == ':'
 
 isTag :: String -> Bool
 isTag x  = isContext x || isProject x
+
+filterWords :: (String -> Bool) -> TodoDB -> Set String
+filterWords f = Set.fromList . filter f . words . unlines
 
 todosWithIds :: TodoDB -> [(Id, Todo)]
 todosWithIds = zip [1..]
