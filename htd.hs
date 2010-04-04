@@ -229,9 +229,9 @@ getAppDir :: IO String
 getAppDir = getAppUserDataDirectory "htd"
 
 fmtTodo :: Id -> Todo -> String
-fmtTodo todoId todo = printf "[%4s] %s" idColored todoColored
+fmtTodo todoId todo = printf "%s %s" idColored todoColored
     where
-        idColored = applyColor idColor $ show todoId
+        idColored = applyColor idColor $ printf "[%4s]" (show todoId)
         todoColored  = unwords . map colorize . words $ todo
 
 colorize :: String -> String
