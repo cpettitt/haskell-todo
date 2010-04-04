@@ -70,6 +70,9 @@ cmd :: [String] -> IO ()
 cmd ("add":desc) =
     modifyDB (add $ unwords desc)
 
+cmd ("change":idStr:desc) =
+    modifyDB (adjustTodo (read idStr) (const $ unwords desc))
+
 cmd ("rm":idStr:[]) =
     modifyDB (delete $ read idStr)
 
