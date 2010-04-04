@@ -80,19 +80,19 @@ dispatch (cmd:args) = case lookupCmd cmd of
 
 cmds :: [CmdInfo]
 cmds =
-    [("add",    cmdAdd,    "<description>",         "adds a task")
-    ,("change", cmdChange, "<id> <description>",    "changes a task")
-    ,("rm",     cmdRm,     "<id>",                  "removes a task")
-    ,("addtag", cmdAddTag, "<id> <tag>",            "adds a tag to a task")
-    ,("rmtag",  cmdRmTag,  "<id> <tag>",            "removes a tag from a task")
-    ,("done",   cmdDone,   "<id>",                  "marks a task as done")
-    ,("undone", cmdUndone, "<id>",                  "resets the done state for a task")
-    ,("projs",  cmdProjs,  "",                      "list the project names")
-    ,("conts",  cmdConts,  "",                      "list the context names")
-    ,("ls",     cmdLs,     "[tag ...]",             "list all tasks that are not done")
-    ,("lsdone", cmdLsDone, "[tag ...]",             "list all tasks that are done")
-    ,("lsall",  cmdLsAll,  "[tag ...]",             "list all tasks")
-    ,("help",   cmdHelp,   "",                      "this help information")
+    [("add",      cmdAdd,      "<description>",         "adds a task")
+    ,("change",   cmdChange,   "<id> <description>",    "changes a task")
+    ,("rm",       cmdRm,       "<id>",                  "removes a task")
+    ,("addtag",   cmdAddTag,   "<id> <tag>",            "adds a tag to a task")
+    ,("rmtag",    cmdRmTag,    "<id> <tag>",            "removes a tag from a task")
+    ,("done",     cmdDone,     "<id>",                  "marks a task as done")
+    ,("undone",   cmdUndone,   "<id>",                  "resets the done state for a task")
+    ,("projs",    cmdProjs,    "",                      "list the project names")
+    ,("conts",    cmdConts,    "",                      "list the context names")
+    ,("list",     cmdList,     "[tag ...]",             "list all tasks that are not done")
+    ,("listdone", cmdListDone, "[tag ...]",             "list all tasks that are done")
+    ,("listall",  cmdListAll,  "[tag ...]",             "list all tasks")
+    ,("help",     cmdHelp,      "",                     "this help information")
     ]
 
 cmdAdd :: CmdHandler
@@ -134,14 +134,14 @@ cmdConts :: CmdHandler
 cmdConts [] = withDB (unlines . map colorize . Set.toList .  filterTags isContext) >>= putStr
 cmdConts _ = printUsage "conts"
 
-cmdLs :: CmdHandler
-cmdLs tags = withDB (list (Set.fromList tags) (Set.singleton "@done")) >>= putStr
+cmdList :: CmdHandler
+cmdList tags = withDB (list (Set.fromList tags) (Set.singleton "@done")) >>= putStr
 
-cmdLsDone :: CmdHandler
-cmdLsDone tags = withDB (list (Set.fromList ("@done":tags)) Set.empty) >>= putStr
+cmdListDone :: CmdHandler
+cmdListDone tags = withDB (list (Set.fromList ("@done":tags)) Set.empty) >>= putStr
 
-cmdLsAll :: CmdHandler
-cmdLsAll tags = withDB (list (Set.fromList tags) Set.empty) >>= putStr
+cmdListAll :: CmdHandler
+cmdListAll tags = withDB (list (Set.fromList tags) Set.empty) >>= putStr
 
 cmdHelp :: CmdHandler
 cmdHelp _ = do
