@@ -156,7 +156,8 @@ hasTags :: Set Tag -> Todo -> Bool
 hasTags tags todo = tags `Set.isSubsetOf` getTags todo
 
 getTags :: Todo -> Set Tag
-getTags = Set.fromList . filter isTag . words
+getTags = Set.fromList . map stripMeta . filter isTag . words
+    where stripMeta = takeWhile (/= '{')
 
 isTag :: String -> Bool
 isTag [] = False
