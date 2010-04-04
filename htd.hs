@@ -19,6 +19,7 @@ import qualified Data.Set as Set
 import Data.Time.Clock (getCurrentTime, utctDay)
 import Data.Time.Calendar (toGregorian)
 
+import System.Console.ANSI (Color(..), ColorIntensity(..), ConsoleLayer(..), SGR(..), Underlining(..), setSGRCode)
 import System.Console.Haskeline (InputT, defaultSettings, getInputLine, runInputT)
 import System.Directory (copyFile, createDirectoryIfMissing, doesFileExist, getAppUserDataDirectory)
 import System.Environment (getArgs)
@@ -182,7 +183,17 @@ getAppDir :: IO String
 getAppDir = getAppUserDataDirectory "htd"
 
 fmtTodo :: Id -> Todo -> String
-fmtTodo = printf "[%4d] %s"
+fmtTodo todoId todo = printf "%s[%4d]%s %s" idColor todoId resetColor todoColored
+    where
+        idColor      = setSGRCode [SetColor Foreground Vivid Magenta]
+        resetColor   = setSGRCode []
+        contextColor = setSGRCode [SetColor Foreground Vivid Green, SetUnderlining SingleUnderline]
+        projectColor = setSGRCode [SetColor Foreground Vivid Blue, SetUnderlining SingleUnderline]
+        todoColored  = unwords . map colorWord . words $ todo
+        colorWord x
+            | isContext x = printf "%s%s%s" contextColor x resetColor
+            | isProject x = printf "%s%s%s" projectColor x resetColor
+            | otherwise   = x
 
 -- Returns @True@ if the 'Todo' has all specified 'Tag's.
 hasTags :: Set Tag -> Todo -> Bool
@@ -198,9 +209,16 @@ getTags = Set.fromList . map stripTagMeta . filter isTag . words
 stripTagMeta :: Tag -> Tag
 stripTagMeta = takeWhile (/= '{')
 
+isContext :: String -> Bool
+isContext [] = False
+isContext x  = head x == '@'
+
+isProject :: String -> Bool
+isProject [] = False
+isProject x  = head x == ':'
+
 isTag :: String -> Bool
-isTag [] = False
-isTag x  = head x `elem` "@:"
+isTag x  = isContext x || isProject x
 
 todosWithIds :: TodoDB -> [(Id, Todo)]
 todosWithIds = zip [1..]
