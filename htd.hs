@@ -13,6 +13,7 @@ module Main (main) where
 import Control.Monad (unless)
 import Control.Monad.Trans (liftIO)
 
+import Data.List (isPrefixOf)
 import Data.Maybe (fromJust)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -20,7 +21,8 @@ import Data.Time.Clock (getCurrentTime, utctDay)
 import Data.Time.Calendar (toGregorian)
 
 import System.Console.ANSI (Color(..), ColorIntensity(..), ConsoleLayer(..), SGR(..), Underlining(..), setSGRCode)
-import System.Console.Haskeline (InputT, defaultSettings, getInputLine, runInputT)
+import System.Console.Haskeline (InputT, defaultSettings, getInputLine, runInputT, setComplete)
+import System.Console.Haskeline.Completion (CompletionFunc, simpleCompletion)
 import System.Directory (copyFile, createDirectoryIfMissing, doesFileExist, getAppUserDataDirectory)
 import System.Environment (getArgs)
 import System.IO (IOMode(..), hGetContents, hPutStr, withFile)
@@ -44,13 +46,15 @@ type CmdInfo = (String, CmdHandler, String, String)
 
 main :: IO ()
 main = do
-    args <- getArgs
+        args <- getArgs
 
-    if null args
-        then do
-            putStrLn "Haskell Todo (HTD) - Interactive Mode"
-            runInputT defaultSettings interactive
-        else dispatch args
+        if null args
+            then do
+                putStrLn "Haskell Todo (HTD) - Interactive Mode"
+                runInputT haskelineSettings interactive
+            else dispatch args
+    where
+        haskelineSettings = setComplete autoComplete defaultSettings
 
 {-------------------------------------------------------------------------------
   Interactive Loop
@@ -231,7 +235,20 @@ projectColor :: [SGR]
 projectColor = [SetColor Foreground Vivid Blue, SetUnderlining SingleUnderline]
 
 {-------------------------------------------------------------------------------
-  Helpers
+  Auto Completion
+-------------------------------------------------------------------------------}
+
+autoComplete :: CompletionFunc IO
+autoComplete (leftStr, _) = return (rest, completions)
+    where
+        (part, rest) = (reverse $ unwords $ take 1 $ words leftStr,
+                        unwords $ drop 1 $ words leftStr)
+        completions  = map simpleCompletion $ filter (part `isPrefixOf`) cmdNames
+        cmdNames     = map cmdInfoToName cmds
+        cmdInfoToName (name,_,_,_) = name
+
+{-------------------------------------------------------------------------------
+  Misc Helpers
 -------------------------------------------------------------------------------}
 
 maybeCreateDB :: IO ()
