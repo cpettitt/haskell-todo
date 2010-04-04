@@ -153,7 +153,12 @@ withDB :: (TodoDB -> a) -> IO a
 withDB f = fmap f load
 
 modifyDB :: (TodoDB -> TodoDB) -> IO ()
-modifyDB f = withDB f >>= save >> return ()
+modifyDB f = catch doModify handleError
+    where
+        doModify = do
+            db' <- withDB f
+            db' `seq` save db'
+        handleError e = print e >> return ()
 
 maybeCreateDB :: IO ()
 maybeCreateDB = do
