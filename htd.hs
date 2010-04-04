@@ -105,7 +105,7 @@ delete todoId db = take (todoId - 1) db ++ drop todoId db
 adjustTodo :: Id -> (Todo -> Todo) -> TodoDB -> TodoDB
 adjustTodo todoId f db
     | todoId > 0 && todoId <= length db =
-        take (todoId - 1) db ++ [f (db !! (todoId - 1))] ++ drop (todoId + 1) db
+        take (todoId - 1) db ++ [f (db !! (todoId - 1))] ++ drop todoId db
     | otherwise = db
 
 addTag :: Tag -> Todo -> Todo
