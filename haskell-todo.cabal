@@ -16,6 +16,7 @@ executable htd
                     containers, 
                     directory,
                     haskeline,
-                    mtl
+                    mtl,
+                    time
     main-is:        htd.hs
     ghc-options:    -Wall

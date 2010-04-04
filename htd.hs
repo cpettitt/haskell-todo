@@ -16,6 +16,8 @@ import Control.Monad.Trans (liftIO)
 import Data.List (intercalate)
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Time.Clock (getCurrentTime, utctDay)
+import Data.Time.Calendar (toGregorian)
 
 import System.Console.Haskeline (InputT, defaultSettings, getInputLine, runInputT)
 import System.Directory (copyFile, createDirectoryIfMissing, doesFileExist, getAppUserDataDirectory)
@@ -64,12 +66,36 @@ interactive = do
 -------------------------------------------------------------------------------}
 
 cmd :: [String] -> IO ()
-cmd ("add":desc)            = modifyDB (add $ unwords desc)
-cmd ("rm":idStr:[])         = modifyDB (delete $ read idStr)
-cmd ("addtag":idStr:tag:[]) = modifyDB (adjustTodo (read idStr) (addTag tag))
-cmd ("rmtag":idStr:tag:[])  = modifyDB (adjustTodo (read idStr) (deleteTag tag))
-cmd ("list":tags)           = withDB (list (Set.fromList tags)) >>= putStr
-cmd unknown                 = putStrLn $ "Unknown command: " ++ intercalate " " unknown
+cmd ("add":desc) =
+    modifyDB (add $ unwords desc)
+
+cmd ("rm":idStr:[]) =
+    modifyDB (delete $ read idStr)
+
+cmd ("addtag":idStr:tag:[]) =
+    modifyDB (adjustTodo (read idStr) (addTag tag))
+
+cmd ("rmtag":idStr:tag:[]) =
+    modifyDB (adjustTodo (read idStr) (deleteTag tag))
+
+cmd ("done":idStr:[]) = do
+    date <- dateStr
+    modifyDB (adjustTodo (read idStr) (addTag $ "@done{" ++ date ++ "}"))
+
+cmd ("undone":idStr:[]) =
+    modifyDB (adjustTodo (read idStr) (deleteTag "@done"))
+
+cmd ("ls":tags) =
+    withDB (list (Set.fromList tags) (Set.singleton "@done")) >>= putStr
+
+cmd ("lsdone":tags) =
+    withDB (list (Set.fromList ("@done":tags)) Set.empty) >>= putStr
+
+cmd ("lsall":tags) =
+    withDB (list (Set.fromList tags) Set.empty) >>= putStr
+
+cmd unknown =
+    putStrLn $ "Unknown command: " ++ intercalate " " unknown
 
 {-------------------------------------------------------------------------------
   TodoDB - Load / Save
@@ -112,11 +138,12 @@ addTag :: Tag -> Todo -> Todo
 addTag tag = (tag ++) . (" " ++)
 
 deleteTag :: Tag -> Todo -> Todo
-deleteTag tag = unwords . filter (/= tag) . words
+deleteTag tag = unwords . filter ((/= tag) . stripTagMeta) . words
 
-list :: Set Tag -> TodoDB -> String
-list tags db = unlines $ map (uncurry fmtTodo) todos'
-    where todos' = filter (hasTags tags . snd) (todosWithIds db)
+list :: Set Tag -> Set Tag -> TodoDB -> String
+list selTags deselTags db = unlines $ map (uncurry fmtTodo) todos'
+    where todos' = filter (filterRule . snd) (todosWithIds db)
+          filterRule todo = hasTags selTags todo && noHasTags deselTags todo
 
 {-------------------------------------------------------------------------------
   Helpers
@@ -152,12 +179,19 @@ getAppDir = getAppUserDataDirectory "htd"
 fmtTodo :: Id -> Todo -> String
 fmtTodo = printf "[%4d] %s"
 
+-- Returns @True@ if the 'Todo' has all specified 'Tag's.
 hasTags :: Set Tag -> Todo -> Bool
 hasTags tags todo = tags `Set.isSubsetOf` getTags todo
 
+-- Returns @True@ if the 'Todo' has none of the specified 'Tag's.
+noHasTags :: Set Tag -> Todo -> Bool
+noHasTags tags todo = Set.null (tags `Set.intersection` getTags todo)
+
 getTags :: Todo -> Set Tag
-getTags = Set.fromList . map stripMeta . filter isTag . words
-    where stripMeta = takeWhile (/= '{')
+getTags = Set.fromList . map stripTagMeta . filter isTag . words
+
+stripTagMeta :: Tag -> Tag
+stripTagMeta = takeWhile (/= '{')
 
 isTag :: String -> Bool
 isTag [] = False
@@ -165,3 +199,9 @@ isTag x  = head x `elem` "@:"
 
 todosWithIds :: TodoDB -> [(Id, Todo)]
 todosWithIds = zip [1..]
+
+dateStr :: IO String
+dateStr = do
+    currentTime <- getCurrentTime
+    let (year, month, day) = toGregorian $ utctDay currentTime
+    return $ printf "%d-%d-%d" year month day
