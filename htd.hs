@@ -145,7 +145,7 @@ cmdHelp _ = do
         putStr . unlines . map printCmdInfo $ cmds
 
 {-------------------------------------------------------------------------------
-  TodoDB - Load / Save
+  TodoDB - Monadic Operations
 -------------------------------------------------------------------------------}
 
 load :: IO TodoDB
@@ -161,6 +161,17 @@ save db = do
     dbFile <- getDBFileName
     backupDB
     withFile dbFile WriteMode $ \h -> hPutStr h $ unlines db
+
+withDB :: (TodoDB -> a) -> IO a
+withDB f = fmap f load
+
+modifyDB :: (TodoDB -> TodoDB) -> IO ()
+modifyDB f = catch doModify handleError
+    where
+        doModify = do
+            db' <- withDB f
+            db' `seq` save db'
+        handleError e = print e >> return ()
 
 {-------------------------------------------------------------------------------
   TodoDB - Pure Manipulation
@@ -193,19 +204,35 @@ list selTags deselTags db = unlines $ map (uncurry fmtTodo) todos'
           filterRule todo = hasTags selTags todo && noHasTags deselTags todo
 
 {-------------------------------------------------------------------------------
-  Helpers
+  Color Handling
 -------------------------------------------------------------------------------}
 
-withDB :: (TodoDB -> a) -> IO a
-withDB f = fmap f load
+colorize :: String -> String
+colorize x
+    | isContext x = applyColor contextColor x
+    | isProject x = applyColor projectColor x
+    | otherwise   = x
 
-modifyDB :: (TodoDB -> TodoDB) -> IO ()
-modifyDB f = catch doModify handleError
-    where
-        doModify = do
-            db' <- withDB f
-            db' `seq` save db'
-        handleError e = print e >> return ()
+
+applyColor :: [SGR] -> String -> String
+applyColor sgr str = printf "%s%s%s" (setSGRCode sgr) str (setSGRCode resetColor)
+
+-- Color codes
+idColor :: [SGR]
+idColor      = [SetColor Foreground Vivid Magenta]
+
+resetColor :: [SGR]
+resetColor   = []
+
+contextColor :: [SGR]
+contextColor = [SetColor Foreground Vivid Green, SetUnderlining SingleUnderline]
+
+projectColor :: [SGR]
+projectColor = [SetColor Foreground Vivid Blue, SetUnderlining SingleUnderline]
+
+{-------------------------------------------------------------------------------
+  Helpers
+-------------------------------------------------------------------------------}
 
 maybeCreateDB :: IO ()
 maybeCreateDB = do
@@ -233,28 +260,6 @@ fmtTodo todoId todo = printf "%s %s" idColored todoColored
     where
         idColored = applyColor idColor $ printf "[%4s]" (show todoId)
         todoColored  = unwords . map colorize . words $ todo
-
-colorize :: String -> String
-colorize x
-    | isContext x = applyColor contextColor x
-    | isProject x = applyColor projectColor x
-    | otherwise   = x
-
--- Color codes
-idColor :: [SGR]
-idColor      = [SetColor Foreground Vivid Magenta]
-
-resetColor :: [SGR]
-resetColor   = []
-
-contextColor :: [SGR]
-contextColor = [SetColor Foreground Vivid Green, SetUnderlining SingleUnderline]
-
-projectColor :: [SGR]
-projectColor = [SetColor Foreground Vivid Blue, SetUnderlining SingleUnderline]
-
-applyColor :: [SGR] -> String -> String
-applyColor sgr str = printf "%s%s%s" (setSGRCode sgr) str (setSGRCode resetColor)
 
 -- Returns @True@ if the 'Todo' has all specified 'Tag's.
 hasTags :: Set Tag -> Todo -> Bool
