@@ -11,11 +11,13 @@
 module Main (main) where
 
 import Control.Monad (unless)
+import Control.Monad.Trans (liftIO)
 
 import Data.List (intercalate)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
+import System.Console.Haskeline (InputT, defaultSettings, getInputLine, runInputT)
 import System.Directory (copyFile, createDirectoryIfMissing, doesFileExist, getAppUserDataDirectory)
 import System.Environment (getArgs)
 import System.IO (IOMode(..), hGetContents, hPutStr, withFile)
@@ -36,7 +38,26 @@ type TodoDB = [Todo]
 -------------------------------------------------------------------------------}
 
 main :: IO ()
-main = getArgs >>= cmd
+main = do
+    args <- getArgs
+
+    if null args
+        then do
+            putStrLn "Haskell Todo (HTD) - Interactive Mode"
+            runInputT defaultSettings interactive
+        else cmd args
+
+{-------------------------------------------------------------------------------
+  Interactive Loop
+-------------------------------------------------------------------------------}
+
+interactive :: InputT IO ()
+interactive = do
+    line <- getInputLine "> "
+    case line of
+        Nothing -> return ()
+        Just "quit" -> return ()
+        Just input -> liftIO (cmd (words input)) >> interactive
 
 {-------------------------------------------------------------------------------
   Commands
@@ -48,7 +69,7 @@ cmd ("rm":idStr:[])         = modifyDB (delete $ read idStr)
 cmd ("addtag":idStr:tag:[]) = modifyDB (adjustTodo (read idStr) (addTag tag))
 cmd ("rmtag":idStr:tag:[])  = modifyDB (adjustTodo (read idStr) (deleteTag tag))
 cmd ("list":tags)           = withDB (list (Set.fromList tags)) >>= putStr
-cmd unknown                 = error $ "Unknown command: " ++ intercalate " " unknown
+cmd unknown                 = putStrLn $ "Unknown command: " ++ intercalate " " unknown
 
 {-------------------------------------------------------------------------------
   TodoDB - Load / Save
