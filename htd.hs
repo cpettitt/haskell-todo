@@ -13,6 +13,7 @@ module Main (main) where
 import Control.Monad (unless)
 import Control.Monad.Trans (liftIO)
 
+import Data.Maybe (fromJust)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Time.Clock (getCurrentTime, utctDay)
@@ -35,6 +36,7 @@ type Todo = String
 type Tag = String
 type TodoDB = [Todo]
 type CmdHandler = [String] -> IO ()
+type CmdInfo = (String, CmdHandler, String, String)
 
 {-------------------------------------------------------------------------------
   Main
@@ -68,66 +70,65 @@ interactive = do
 
 dispatch :: [String] -> IO ()
 dispatch [] = return ()
-dispatch (cmd:args) = case lookup cmd cmdsWithoutHelp of
-        Nothing -> printError $ "Unknown command: " ++ unwords (cmd:args)
-        Just f  -> f args
-    where cmdsWithoutHelp = map (\(x,y,_) -> (x,y)) cmds
+dispatch (cmd:args) = case lookupCmd cmd of
+        Nothing        -> printError $ "Unknown command: " ++ unwords (cmd:args)
+        Just (_,f,_,_) -> f args
 
-cmds :: [(String, CmdHandler, String)]
+cmds :: [CmdInfo]
 cmds =
-    [("add",    cmdAdd,    "adds a task")
-    ,("change", cmdChange, "changes a task")
-    ,("rm",     cmdRm,     "removes a task")
-    ,("addtag", cmdAddTag, "adds a tag to a task")
-    ,("rmtag",  cmdRmTag,  "removes a tag from a task")
-    ,("done",   cmdDone,   "marks a task as done")
-    ,("undone", cmdUndone, "resets the done state for a task")
-    ,("projs",  cmdProjs,  "list the project names")
-    ,("conts",  cmdConts,  "list the context names")
-    ,("ls",     cmdLs,     "list all tasks that are not done")
-    ,("lsdone", cmdLsDone, "list all tasks that are done")
-    ,("lsall",  cmdLsAll,  "list all tasks")
-    ,("help",   cmdHelp,   "this help information")
+    [("add",    cmdAdd,    "<description>",         "adds a task")
+    ,("change", cmdChange, "<id> <description>",    "changes a task")
+    ,("rm",     cmdRm,     "<id>",                  "removes a task")
+    ,("addtag", cmdAddTag, "<id> <tag>",            "adds a tag to a task")
+    ,("rmtag",  cmdRmTag,  "<id> <tag>",            "removes a tag from a task")
+    ,("done",   cmdDone,   "<id>",                  "marks a task as done")
+    ,("undone", cmdUndone, "<id>",                  "resets the done state for a task")
+    ,("projs",  cmdProjs,  "",                      "list the project names")
+    ,("conts",  cmdConts,  "",                      "list the context names")
+    ,("ls",     cmdLs,     "[tag ...]",             "list all tasks that are not done")
+    ,("lsdone", cmdLsDone, "[tag ...]",             "list all tasks that are done")
+    ,("lsall",  cmdLsAll,  "[tag ...]",             "list all tasks")
+    ,("help",   cmdHelp,   "",                      "this help information")
     ]
 
 cmdAdd :: CmdHandler
-cmdAdd []   = printError "Usage: add <description>"
+cmdAdd []   = printUsage "add"
 cmdAdd desc = modifyDB (add $ unwords desc)
 
 cmdChange :: CmdHandler
 cmdChange (idStr:desc)
     | not (null desc) = modifyDB (adjustTodo (read idStr) (const $ unwords desc))
-cmdChange _ = printError "Usage: change <id> <description>"
+cmdChange _ = printUsage "change"
 
 cmdRm :: CmdHandler
 cmdRm (idStr:[]) = modifyDB (delete $ read idStr)
-cmdRm _ = printError "Usage: rm <id>"
+cmdRm _ = printUsage "rm"
 
 cmdAddTag :: CmdHandler
 cmdAddTag (idStr:tag:[]) = modifyDB (adjustTodo (read idStr) (addTag tag))
-cmdAddTag _ = printError "Usage: addtag <id> <tag>"
+cmdAddTag _ = printUsage "addtag"
 
 cmdRmTag :: CmdHandler
 cmdRmTag (idStr:tag:[]) = modifyDB (adjustTodo (read idStr) (deleteTag tag))
-cmdRmTag _ = printError "Usage: rmtag <id> <tag>"
+cmdRmTag _ = printUsage "rmtag"
 
 cmdDone :: CmdHandler
 cmdDone (idStr:[]) = do
     date <- dateStr
     modifyDB (adjustTodo (read idStr) (addTag $ "@done{" ++ date ++ "}"))
-cmdDone _ = printError "Usage: done <id>"
+cmdDone _ = printUsage "done"
 
 cmdUndone :: CmdHandler
 cmdUndone (idStr:[]) = modifyDB (adjustTodo (read idStr) (deleteTag "@done"))
-cmdUndone _ = printError "Usage: undone <id>"
+cmdUndone _ = printUsage "undone"
 
 cmdProjs :: CmdHandler
 cmdProjs [] = withDB (unlines . map colorize . Set.toList . filterTags isProject) >>= putStr
-cmdProjs _ = printError "Usage: projs"
+cmdProjs _ = printUsage "projs"
 
 cmdConts :: CmdHandler
 cmdConts [] = withDB (unlines . map colorize . Set.toList .  filterTags isContext) >>= putStr
-cmdConts _ = printError "Usage: conts"
+cmdConts _ = printUsage "conts"
 
 cmdLs :: CmdHandler
 cmdLs tags = withDB (list (Set.fromList tags) (Set.singleton "@done")) >>= putStr
@@ -141,9 +142,7 @@ cmdLsAll tags = withDB (list (Set.fromList tags) Set.empty) >>= putStr
 cmdHelp :: CmdHandler
 cmdHelp _ = do
         putStrLn "Haskell Todo (HTD) Commands:"
-        putStr $ unlines $ map helpInfo cmds
-    where
-        helpInfo (cmd, _, help) = printf "%-10s %s" cmd help
+        putStr . unlines . map printCmdInfo $ cmds
 
 {-------------------------------------------------------------------------------
   TodoDB - Load / Save
@@ -298,3 +297,14 @@ printError :: String -> IO ()
 printError x = do
     putStrLn x
     putStrLn "Use 'help' for usage information."
+
+printUsage :: String -> IO ()
+printUsage = putStrLn . ("Usage: " ++) . printCmdInfo . fromJust . lookupCmd
+
+lookupCmd :: String -> Maybe CmdInfo
+lookupCmd cmd = lookup cmd $ map cmdInfoMap cmds
+    where
+        cmdInfoMap (name,handler,args,desc) = (name, (name, handler, args, desc))
+
+printCmdInfo :: CmdInfo -> String
+printCmdInfo (name, _, args, desc) = printf "%-10s %-20s %s" name args desc
