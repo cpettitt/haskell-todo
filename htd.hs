@@ -239,12 +239,13 @@ projectColor = [SetColor Foreground Vivid Blue, SetUnderlining SingleUnderline]
 -------------------------------------------------------------------------------}
 
 autoComplete :: CompletionFunc IO
-autoComplete (leftStr, _) = return (rest, completions)
+autoComplete (leftStr, _)
+        | length (words leftStr) > 1 = return ("", [])
+        | otherwise = return ("", completions)
     where
-        (part, rest) = (reverse $ unwords $ take 1 $ words leftStr,
-                        unwords $ drop 1 $ words leftStr)
-        completions  = map simpleCompletion $ filter (part `isPrefixOf`) cmdNames
-        cmdNames     = map cmdInfoToName cmds
+        word = reverse leftStr
+        completions  = map simpleCompletion $ filter (word `isPrefixOf`) cmdNames
+        cmdNames = map cmdInfoToName cmds
         cmdInfoToName (name,_,_,_) = name
 
 {-------------------------------------------------------------------------------
