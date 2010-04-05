@@ -82,17 +82,17 @@ dispatch (cmd:args) = case lookupCmd cmd of
 
 cmds :: [CmdInfo]
 cmds =
-    [("add",      cmdAdd,      "<description>",         "adds a task")
-    ,("change",   cmdChange,   "<id> <description>",    "changes a task")
-    ,("rm",       cmdRm,       "<id>",                  "removes a task")
-    ,("addtag",   cmdAddTag,   "<id> <tag>",            "adds a tag to a task")
-    ,("rmtag",    cmdRmTag,    "<id> <tag>",            "removes a tag from a task")
-    ,("done",     cmdDone,     "<id>",                  "marks a task as done")
-    ,("undone",   cmdUndone,   "<id>",                  "resets the done state for a task")
-    ,("projs",    cmdProjs,    "",                      "list the project names")
-    ,("conts",    cmdConts,    "",                      "list the context names")
-    ,("list",     cmdList,     "[tag | -tag ...]",      "list all tasks with optional filtering")
-    ,("help",     cmdHelp,      "",                     "this help information")
+    [("add",        cmdAdd,      "<description>",         "adds a task")
+    ,("change",     cmdChange,   "<id> <description>",    "changes a task")
+    ,("rm",         cmdRm,       "<id>",                  "removes a task")
+    ,("addtag",     cmdAddTag,   "<id> <tag>",            "adds a tag to a task")
+    ,("rmtag",      cmdRmTag,    "<id> <tag>",            "removes a tag from a task")
+    ,("done",       cmdDone,     "<id>",                  "marks a task as done")
+    ,("undone",     cmdUndone,   "<id>",                  "resets the done state for a task")
+    ,("projects",   cmdProjects, "",                      "list the project names")
+    ,("contexts",   cmdContexts, "",                      "list the context names")
+    ,("list",       cmdList,     "[tag | -tag ...]",      "list all tasks with optional filtering")
+    ,("help",       cmdHelp,      "",                     "this help information")
     ]
 
 cmdAdd :: CmdHandler
@@ -126,13 +126,13 @@ cmdUndone :: CmdHandler
 cmdUndone (idStr:[]) = modifyDB (adjustTodo (read idStr) (deleteTag "@done"))
 cmdUndone _ = printUsage "undone"
 
-cmdProjs :: CmdHandler
-cmdProjs [] = withDB (unlines . map colorize . Set.toList . filterTags isProject) >>= putStr
-cmdProjs _ = printUsage "projs"
+cmdProjects :: CmdHandler
+cmdProjects [] = withDB (unlines . map colorize . Set.toList . filterTags isProject) >>= putStr
+cmdProjects _ = printUsage "projects"
 
-cmdConts :: CmdHandler
-cmdConts [] = withDB (unlines . map colorize . Set.toList .  filterTags isContext) >>= putStr
-cmdConts _ = printUsage "conts"
+cmdContexts :: CmdHandler
+cmdContexts [] = withDB (unlines . map colorize . Set.toList .  filterTags isContext) >>= putStr
+cmdContexts _ = printUsage "contexts"
 
 cmdList :: CmdHandler
 cmdList [] = cmdList ["-@done"]
