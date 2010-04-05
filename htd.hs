@@ -40,6 +40,7 @@ type Tag = String
 type TodoDB = [Todo]
 type CmdHandler = [String] -> IO ()
 type CmdInfo = (String, CmdHandler, String, String)
+type TagFilter = (Set Tag, Set Tag)
 
 {-------------------------------------------------------------------------------
   Main
@@ -90,9 +91,7 @@ cmds =
     ,("undone",   cmdUndone,   "<id>",                  "resets the done state for a task")
     ,("projs",    cmdProjs,    "",                      "list the project names")
     ,("conts",    cmdConts,    "",                      "list the context names")
-    ,("list",     cmdList,     "[tag ...]",             "list all tasks that are not done")
-    ,("listdone", cmdListDone, "[tag ...]",             "list all tasks that are done")
-    ,("listall",  cmdListAll,  "[tag ...]",             "list all tasks")
+    ,("list",     cmdList,     "[tag | -tag ...]",      "list all tasks with optional filtering")
     ,("help",     cmdHelp,      "",                     "this help information")
     ]
 
@@ -136,13 +135,11 @@ cmdConts [] = withDB (unlines . map colorize . Set.toList .  filterTags isContex
 cmdConts _ = printUsage "conts"
 
 cmdList :: CmdHandler
-cmdList tags = withDB (list (Set.fromList tags) (Set.singleton "@done")) >>= putStr
-
-cmdListDone :: CmdHandler
-cmdListDone tags = withDB (list (Set.fromList ("@done":tags)) Set.empty) >>= putStr
-
-cmdListAll :: CmdHandler
-cmdListAll tags = withDB (list (Set.fromList tags) Set.empty) >>= putStr
+cmdList [] = cmdList ["-@done"]
+cmdList tags = withDB (list (selTags, deselTags)) >>= putStr
+    where
+        selTags = Set.fromList . filter (not . ("-" `isPrefixOf`)) $ tags
+        deselTags = Set.fromList . map tail . filter ("-" `isPrefixOf`) $ tags
 
 cmdHelp :: CmdHandler
 cmdHelp _ = do
@@ -203,8 +200,8 @@ addTag tag = (tag ++) . (" " ++)
 deleteTag :: Tag -> Todo -> Todo
 deleteTag tag = unwords . filter ((/= tag) . stripTagMeta) . words
 
-list :: Set Tag -> Set Tag -> TodoDB -> String
-list selTags deselTags db = unlines $ map (uncurry fmtTodo) todos'
+list :: TagFilter -> TodoDB -> String
+list (selTags, deselTags) db = unlines $ map (uncurry fmtTodo) todos'
     where todos' = filter (filterRule . snd) (todosWithIds db)
           filterRule todo = hasTags selTags todo && noHasTags deselTags todo
 
