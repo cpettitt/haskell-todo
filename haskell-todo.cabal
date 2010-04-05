@@ -18,6 +18,7 @@ executable htd
                     directory,
                     haskeline,
                     mtl,
+                    parallel,
                     time
     main-is:        htd.hs
     ghc-options:    -Wall

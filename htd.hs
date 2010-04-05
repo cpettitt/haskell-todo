@@ -12,6 +12,7 @@ module Main (main) where
 
 import Control.Monad (unless)
 import Control.Monad.Trans (liftIO)
+import Control.Parallel.Strategies (rnf)
 
 import Data.List (isPrefixOf)
 import Data.Maybe (fromJust)
@@ -158,7 +159,7 @@ load = do
     maybeCreateDB
     withFile dbFile ReadMode $ \h -> do
         c <- hGetContents h
-        return $! lines c
+        rnf c `seq` return $! lines c
 
 save :: TodoDB -> IO ()
 save db = do
