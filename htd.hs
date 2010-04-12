@@ -14,7 +14,7 @@ import Control.Monad (unless)
 import Control.Monad.Trans (liftIO)
 import Control.Parallel.Strategies (rnf)
 
-import Data.List (isPrefixOf)
+import Data.List (foldl', isPrefixOf)
 import Data.Maybe (fromJust)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -135,11 +135,13 @@ cmdContexts [] = withDB (unlines . map colorize . Set.toList .  filterTags isCon
 cmdContexts _ = printUsage "contexts"
 
 cmdList :: CmdHandler
-cmdList [] = cmdList ["-@done"]
-cmdList tags = withDB (list (selTags, deselTags)) >>= putStr
+cmdList tags = withDB (list tagFilter) >>= putStr
     where
-        selTags = Set.fromList . filter (not . ("-" `isPrefixOf`)) $ tags
-        deselTags = Set.fromList . map tail . filter ("-" `isPrefixOf`) $ tags
+        defaultFilter = ["-@done", "-@someday"]
+        tagFilter = foldl' updateFilter (Set.empty, Set.empty) (defaultFilter ++ tags)
+        updateFilter (sel, desel) ('-':tag) = (Set.delete tag sel, Set.insert tag desel)
+        updateFilter (sel, desel) ('!':tag) = (sel, Set.delete tag desel)
+        updateFilter (sel, desel) tag       = (Set.insert tag sel, Set.delete tag desel)
 
 cmdHelp :: CmdHandler
 cmdHelp _ = do
