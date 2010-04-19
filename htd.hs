@@ -21,10 +21,27 @@ import qualified Data.Set as Set
 import Data.Time.Clock (getCurrentTime, utctDay)
 import Data.Time.Calendar (toGregorian)
 
-import System.Console.ANSI (Color(..), ColorIntensity(..), ConsoleLayer(..), SGR(..), Underlining(..), setSGRCode)
-import System.Console.Haskeline (InputT, defaultSettings, getInputLine, runInputT, setComplete)
+import System.Console.ANSI (Color(..)
+                           , ColorIntensity(..)
+                           , ConsoleLayer(..)
+                           , SGR(..)
+                           , Underlining(..)
+                           , clearScreen
+                           , setCursorPosition
+                           , setSGRCode
+                           )
+import System.Console.Haskeline (InputT
+                                , defaultSettings
+                                , getInputLine
+                                , runInputT
+                                , setComplete
+                                )
 import System.Console.Haskeline.Completion (CompletionFunc, simpleCompletion)
-import System.Directory (copyFile, createDirectoryIfMissing, doesFileExist, getAppUserDataDirectory)
+import System.Directory (copyFile
+                        , createDirectoryIfMissing
+                        , doesFileExist
+                        , getAppUserDataDirectory
+                        )
 import System.Environment (getArgs)
 import System.IO (IOMode(..), hGetContents, hPutStr, withFile)
 
@@ -68,6 +85,7 @@ interactive = do
     case line of
         Nothing -> return ()
         Just "quit" -> return ()
+        Just "clear" -> liftIO resetScreen >> interactive
         Just input -> liftIO (dispatch (words input)) >> interactive
 
 {-------------------------------------------------------------------------------
@@ -331,3 +349,6 @@ lookupCmd cmd = lookup cmd $ map cmdInfoMap cmds
 
 printCmdInfo :: CmdInfo -> String
 printCmdInfo (name, _, args, desc) = printf "%-10s %-20s %s" name args desc
+
+resetScreen :: IO ()
+resetScreen = clearScreen >> setCursorPosition 0 0
