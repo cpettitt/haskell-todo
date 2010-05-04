@@ -103,6 +103,8 @@ cmds =
     [("add",        cmdAdd,      "<description>",         "adds a task")
     ,("change",     cmdChange,   "<id> <description>",    "changes a task")
     ,("rm",         cmdRm,       "<id>",                  "removes a task")
+    ,("after",      cmdAfter,    "<id> <id>",             "moves a task after another task")
+    ,("before",     cmdBefore,   "<id> <id>",             "moves a task before another task")
     ,("addtag",     cmdAddTag,   "<id> <tag>",            "adds a tag to a task")
     ,("rmtag",      cmdRmTag,    "<id> <tag>",            "removes a tag from a task")
     ,("done",       cmdDone,     "<id>",                  "marks a task as done")
@@ -125,6 +127,14 @@ cmdChange _ = printUsage "change"
 cmdRm :: CmdHandler
 cmdRm (idStr:[]) = modifyDB (delete $ read idStr)
 cmdRm _ = printUsage "rm"
+
+cmdAfter :: CmdHandler
+cmdAfter [idStr1,idStr2] = modifyDB (after (read idStr1) (read idStr2))
+cmdAfter _ = printUsage "after"
+
+cmdBefore :: CmdHandler
+cmdBefore [idStr1,idStr2] = modifyDB (before (read idStr1) (read idStr2))
+cmdBefore _ = printUsage "before"
 
 cmdAddTag :: CmdHandler
 cmdAddTag (idStr:tag:[]) = modifyDB (adjustTodo (read idStr) (addTag tag))
@@ -205,9 +215,6 @@ empty = []
 add :: String -> TodoDB -> TodoDB
 add todo db = db ++ [todo]
 
-delete :: Id -> TodoDB -> TodoDB
-delete todoId db = take (todoId - 1) db ++ drop todoId db
-
 adjustTodo :: Id -> (Todo -> Todo) -> TodoDB -> TodoDB
 adjustTodo todoId f db
     | todoId > 0 && todoId <= length db =
@@ -224,6 +231,28 @@ list :: TagFilter -> TodoDB -> String
 list (selTags, deselTags) db = unlines $ map (uncurry fmtTodo) todos'
     where todos' = filter (filterRule . snd) (todosWithIds db)
           filterRule todo = hasTags selTags todo && noHasTags deselTags todo
+
+after :: Id -> Id -> TodoDB-> TodoDB
+after x y as = insert idx a . delete x $ as
+    where
+        idx
+            | x > y = y + 1
+            | otherwise = y
+        a = as !! (x - 1)
+
+before :: Id -> Id -> TodoDB -> TodoDB
+before x y as = insert idx a . delete x $ as
+    where
+        idx
+            | x < y = y - 1
+            | otherwise = y
+        a = as !! (x - 1)
+
+delete :: Id -> TodoDB -> TodoDB
+delete x as = take (x - 1) as ++ drop x as
+
+insert :: Id -> Todo -> TodoDB -> TodoDB
+insert x a as = take (x - 1) as ++ [a] ++ drop (x - 1) as
 
 {-------------------------------------------------------------------------------
   Color Handling
