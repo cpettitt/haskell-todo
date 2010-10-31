@@ -18,7 +18,7 @@ executable htd
                     directory,
                     haskeline,
                     mtl,
-                    parallel,
+                    parallel >= 3 && < 4,
                     time
     main-is:        htd.hs
     ghc-options:    -Wall
