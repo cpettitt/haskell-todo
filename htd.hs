@@ -165,7 +165,7 @@ cmdContexts _ = printUsage "contexts"
 cmdList :: CmdHandler
 cmdList tags = withDB (list tagFilter) >>= putStr
     where
-        defaultFilter = ["-@done", "-@someday"]
+        defaultFilter = ["-@done"]
         tagFilter = foldl' updateFilter (Set.empty, Set.empty) (defaultFilter ++ tags)
         updateFilter (sel, desel) ('-':tag) = (Set.delete tag sel, Set.insert tag desel)
         updateFilter (sel, desel) ('!':tag) = (sel, Set.delete tag desel)
