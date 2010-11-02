@@ -168,7 +168,7 @@ cmdList tags = withDB (list tagFilter) >>= putStr
         defaultFilter = ["-@done"]
         tagFilter = foldl' updateFilter (Set.empty, Set.empty) (defaultFilter ++ tags)
         updateFilter (sel, desel) ('-':tag) = (Set.delete tag sel, Set.insert tag desel)
-        updateFilter (sel, desel) ('!':tag) = (sel, Set.delete tag desel)
+        updateFilter (sel, desel) ('+':tag) = (sel, Set.delete tag desel)
         updateFilter (sel, desel) tag       = (Set.insert tag sel, Set.delete tag desel)
 
 cmdHelp :: CmdHandler
