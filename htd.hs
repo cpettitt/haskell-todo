@@ -12,6 +12,8 @@ module Main (main) where
 
 import Control.Monad (unless)
 import Control.Monad.Trans (liftIO)
+import Control.Exception (catch)
+import qualified Control.Exception as E
 import Control.Parallel.Strategies (rdeepseq)
 
 import Data.List (foldl', isPrefixOf)
@@ -30,6 +32,7 @@ import System.Console.ANSI (Color(..)
                            , setCursorPosition
                            , setSGRCode
                            )
+
 import System.Console.Haskeline (InputT
                                 , defaultSettings
                                 , getInputLine
@@ -191,7 +194,10 @@ load = do
 save :: TodoDB -> IO ()
 save db = do
     dbFile <- getDBFileName
-    backupDB
+    result <- doesFileExist dbFile
+    case result of
+      False ->  writeFile dbFile ""
+      True ->  backupDB
     withFile dbFile WriteMode $ \h -> hPutStr h $ unlines db
 
 withDB :: (TodoDB -> a) -> IO a
@@ -200,10 +206,11 @@ withDB f = fmap f load
 modifyDB :: (TodoDB -> TodoDB) -> IO ()
 modifyDB f = catch doModify handleError
     where
-        doModify = do
-            db' <- withDB f
-            db' `seq` save db'
-        handleError e = print e >> return ()
+      doModify = do
+        db' <- withDB f
+        db' `seq` save db'
+      handleError :: E.SomeException -> IO ()
+      handleError e = print e >> return ()
 
 {-------------------------------------------------------------------------------
   TodoDB - Pure Manipulation
