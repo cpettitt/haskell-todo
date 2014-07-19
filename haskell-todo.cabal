@@ -20,5 +20,6 @@ executable htd
                     mtl,
                     parallel >= 3 && < 4,
                     time
+                    parsec
     main-is:        htd.hs
     ghc-options:    -Wall
